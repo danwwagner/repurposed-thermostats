@@ -11,14 +11,13 @@ import time
 import codecs
 import subprocess
 import string
-import mh_z19
 
 
 class ControlController:
     """
     Controller class that manages the Thermostat system
     """
-    def __init__(self, sensor_list):
+    def __init__(self, data_dir, sensor_list, excluded_sensor):
         """
         Initializes the controller's variables and list of sensors.
         """
@@ -26,17 +25,23 @@ class ControlController:
         # Designate the type of sensor we are using.
         self.sensors = sensor_list
 
+        # Designate the sensor that will be considered control
+        self.control_sensor = excluded_sensor
+
+        # Temperature value for the control sensor
+        self.control_reading = 0
+
         # Keep track of the number of each type of sensors connected.
-        self.num_sensors = [None] * len(self.sensors)
+        self.num_sensors = [None] * (len(self.sensors) - 1)
 
         # Filename for specific tent to write data
-        self.data_file = 'outdoor'
+        self.data_file = path + 'sensors.csv'
 
         # Format for logging information
         self.format = "%(asctime)-15s %(message)s"
 
         # Temperature checking interval, in seconds
-        self.check_interval = 60
+        self.check_interval = 300
 
         # List of sensors connected to the system
         self.sensor_list = []
@@ -48,7 +53,7 @@ class ControlController:
         self.heater = "OFF"
 
         # Delimit the next day's individual sensor readings via blank line
-        self.sensor_readings = codecs.open('sensors.csv', 'a', 'utf-8')
+        self.sensor_readings = codecs.open(self.data_file, 'a', 'utf-8')
         self.sensor_readings.write('\n')
         self.sensor_readings.close()
 
@@ -75,17 +80,15 @@ class ControlController:
         sensors that have been detected by the controller.
         """
         
-        self.logger.basicConfig = logging.basicConfig(format=self.format, filename='control.log',
-                            level=logging.INFO)
+        self.logger.basicConfig = logging.basicConfig(format=self.format, 
+                                                      filename='control.log',
+                                                      level=logging.INFO)
 
         self.logger.info('SYSTEM ONLINE')
 
         # Log the types of sensors we have detected in the system
         for sen in self.sensors:
             self.logger.info('Detected %s sensors', str(sen))
-
-        # Calibrate current CO2 to 410 ppm
-        mh_z19.zero_point_calibration()
 
         while True:
             # Detect the sensors that are currently connected
@@ -100,7 +103,7 @@ class ControlController:
             try:
                 # Open the sensor readings file and write current timestamp.
                 self.logger.info('Opening sensors file for records')
-                self.sensor_readings = codecs.open('sensors.csv', 'a', 'utf-8')
+                self.sensor_readings = codecs.open(self.data_file, 'a', 'utf-8')
                 self.sensor_readings.write(time.strftime("%Y/%m/%d %H:%M:%S",
                                                          time.localtime()))
 
@@ -110,9 +113,9 @@ class ControlController:
                 total_readings = ""
                 error_flag = 0
                 io_flag = 0
-                for sen in self.sensors:
+                for i in range(0, len(self.sensors) - 1)):
                     try:
-                        self.indoor, readings = sen.read()
+                        self.indoor, readings = self.sensors[i].read()
                         total_indoor += self.indoor
                         total_readings += readings
                     except (IOError, ZeroDivisionError):
@@ -166,7 +169,14 @@ class ControlController:
                                                          ,'w')
                             self.io_errors.write((str(num_errors)))
                             self.io_errors.close()
-
+            
+                # Record the control reading
+                try:
+                    self.control_reading = self.sensor_list[len(self.sensors)-1].read()
+                except (IOError, ZeroDivisionError):
+                    self.logger.info("Error reading control sensor")
+                    io_flag = 1
+                
                 # No I/O error detected this time -> reset counters
                 if not io_flag:
                     self.logger.info('No I/O error detected; ' +
@@ -178,23 +188,14 @@ class ControlController:
                     self.reboots.write('0')
                     self.reboots.close()
 
+                    self.indoor = total_indoor / (len(self.sensors) - 1)
                     self.logger.info('Detected indoor temp of %.2f',
-                                     total_indoor / len(self.sensors))
+                                     self.indoor)
 
                 # Log the individual readings if we have any sensor data
-                if error_flag != len(self.sensors):
+                if error_flag != (len(self.sensors) - 1):
                     self.sensor_readings.write(total_readings)
-
-                self.logger.info('Reading CO2 data')
-                try:
-                    # Read CO2 sensor data and log to file
-                    co2_val = mh_z19.read()['co2']
-                    fmt_string = "," + str(co2_val) + "ppm"
-                    self.logger.info('Logging %d ppm to file', co2_val)
-                    self.sensor_readings.write(fmt_string)
-                except TypeError:
-                    self.logger.info('Unable to read CO2 data')
-
+                
                 # Write a new line for the next reading interval
                 self.sensor_readings.write('\n')
 
@@ -202,7 +203,7 @@ class ControlController:
                 self.sensor_readings.close()
 
                 # Average temperature readings for accuracy
-                self.indoor = total_indoor / len(self.sensors)
+                self.indoor = total_indoor / (len(self.sensors) - 1)
 
                 # Round to three decimal places
                 self.indoor = round(self.indoor, 3)
@@ -229,9 +230,20 @@ class ControlController:
             # Remove non-printable characters (NULL, etc) and first comma
             outdoor_record = "".join(temp for temp in total_readings[1:] if temp in string.printable)
             if self.indoor != 90:
-                self.output_file = codecs.open(self.data_file, 'w', 'utf-8')
-                self.output_file.write(outdoor_record) 
-                self.output_file.close()
+                try:
+                    self.output_file = codecs.open(self.data_file, 'w', 'utf-8')
+                    self.output_file.write(outdoor_record)
+                    self.output_file.write(",")
+                    self.output_file.write(str(self.control_reading))
+                    self.output_file.close()
+                except: # Back up subsequent readings to the microSD
+                    self.data_file = "/home/pi/sensors.csv"
+                    self.output_file = codecs.open(self.data_file, 'w', 'utf-8')
+                    self.output_file.write(outdoor_record)
+                    self.output_file.write(",")
+                    self.output_file.write(str(self.control_reading))
+                    self.output_file.close()
+
             else:
                 self.logger.info('Cannot read sensors. No temperature data.')
 
