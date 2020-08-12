@@ -113,7 +113,7 @@ class ControlController:
                 total_readings = ""
                 error_flag = 0
                 io_flag = 0
-                for i in range(0, len(self.sensors) - 1)):
+                for i in range(0, len(self.sensors) - 1):
                     try:
                         self.indoor, readings = self.sensors[i].read()
                         total_indoor += self.indoor
