@@ -1,0 +1,13 @@
+[Unit]
+Description=HNT automation service
+After=syslog.target
+Wants=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pi/repurposed-thermostats/src
+ExecStart=/usr/bin/python main.py
+
+[Install]
+WantedBy=multi-user.target
