@@ -35,7 +35,7 @@ class ControlController:
         self.num_sensors = [None] * (len(self.sensors) - 1)
 
         # Filename for specific tent to write data
-        self.data_file = path + 'sensors.csv'
+        self.data_file = data_dir + 'sensors.csv'
 
         # Format for logging information
         self.format = "%(asctime)-15s %(message)s"
@@ -80,6 +80,9 @@ class ControlController:
         sensors that have been detected by the controller.
         """
         
+        timer = subprocess.Popen('hwclock -s', stdout=subprocess.PIPE,
+                                  shell=True)
+                                  
         self.logger.basicConfig = logging.basicConfig(format=self.format, 
                                                       filename='control.log',
                                                       level=logging.INFO)

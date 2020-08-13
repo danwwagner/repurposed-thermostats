@@ -35,7 +35,7 @@ directory = os.listdir(path)
 path = path + directory[0] + "/"
 
 # Initialize the controller program
-tent_control = ControlController(sensor, excluded_sensor, path)
+tent_control = ControlController(path, sensor, excluded_sensor)
 
 # Enter the main control loop
 tent_control.main()
