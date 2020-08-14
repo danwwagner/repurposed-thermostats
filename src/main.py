@@ -1,4 +1,3 @@
-# from heatcontroller import HeatController
 from controlcontroller import ControlController
 import os
 
@@ -14,7 +13,7 @@ from sensor import MCP9808
 # This may be different on each system
 # due to inconsistent naming/numbering.
 
-excluded_sensor = "1D"
+excluded_sensor = "1d"
 
 # List of reserved i2c addresses
 # that are used by components
@@ -27,15 +26,18 @@ reserved = ["68"]
 # You must include a Python implementation that
 # uses the Sensor superclass for the
 # type of sensor in your system (see sensor.py)
-sensor = [MCP9808(reserved)]
+sensor = [MCP9808(reserved, excluded_sensor)]
 
 # Find the USB folder in the mount point
 path = "/media/pi/"
 directory = os.listdir(path)
+while len(directory) == 0:
+  directory = os.listdir(path)
+  
 path = path + directory[0] + "/"
 
 # Initialize the controller program
-tent_control = ControlController(path, sensor, excluded_sensor)
+tent_control = ControlController(path, sensor)
 
 # Enter the main control loop
 tent_control.main()

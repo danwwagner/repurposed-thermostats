@@ -17,7 +17,7 @@ class ControlController:
     """
     Controller class that manages the Thermostat system
     """
-    def __init__(self, data_dir, sensor_list, excluded_sensor):
+    def __init__(self, data_dir, sensor_list):
         """
         Initializes the controller's variables and list of sensors.
         """
@@ -25,14 +25,11 @@ class ControlController:
         # Designate the type of sensor we are using.
         self.sensors = sensor_list
 
-        # Designate the sensor that will be considered control
-        self.control_sensor = excluded_sensor
-
         # Temperature value for the control sensor
         self.control_reading = 0
 
         # Keep track of the number of each type of sensors connected.
-        self.num_sensors = [None] * (len(self.sensors) - 1)
+        self.num_sensors = [None] * len(self.sensors)
 
         # Filename for specific tent to write data
         self.data_file = data_dir + 'sensors.csv'
@@ -79,10 +76,10 @@ class ControlController:
         Configure the logger and record the types of
         sensors that have been detected by the controller.
         """
-        
-        timer = subprocess.Popen('hwclock -s', stdout=subprocess.PIPE,
-                                  shell=True)
-                                  
+
+	timer = subprocess.Popen('hwclock -s', stdout=subprocess.PIPE,
+				 shell=True)
+
         self.logger.basicConfig = logging.basicConfig(format=self.format, 
                                                       filename='control.log',
                                                       level=logging.INFO)
@@ -116,9 +113,9 @@ class ControlController:
                 total_readings = ""
                 error_flag = 0
                 io_flag = 0
-                for i in range(0, len(self.sensors) - 1):
+                for i in range(0, len(self.sensors)):
                     try:
-                        self.indoor, readings = self.sensors[i].read()
+                        self.indoor, readings, self.control_reading = self.sensors[i].read()
                         total_indoor += self.indoor
                         total_readings += readings
                     except (IOError, ZeroDivisionError):
@@ -173,13 +170,6 @@ class ControlController:
                             self.io_errors.write((str(num_errors)))
                             self.io_errors.close()
             
-                # Record the control reading
-                try:
-                    self.control_reading = self.sensor_list[len(self.sensors)-1].read()
-                except (IOError, ZeroDivisionError):
-                    self.logger.info("Error reading control sensor")
-                    io_flag = 1
-                
                 # No I/O error detected this time -> reset counters
                 if not io_flag:
                     self.logger.info('No I/O error detected; ' +
@@ -191,22 +181,9 @@ class ControlController:
                     self.reboots.write('0')
                     self.reboots.close()
 
-                    self.indoor = total_indoor / (len(self.sensors) - 1)
+                    self.indoor = total_indoor / len(self.sensors)
                     self.logger.info('Detected indoor temp of %.2f',
                                      self.indoor)
-
-                # Log the individual readings if we have any sensor data
-                if error_flag != (len(self.sensors) - 1):
-                    self.sensor_readings.write(total_readings)
-                
-                # Write a new line for the next reading interval
-                self.sensor_readings.write('\n')
-
-                # Close the sensor readings file
-                self.sensor_readings.close()
-
-                # Average temperature readings for accuracy
-                self.indoor = total_indoor / (len(self.sensors) - 1)
 
                 # Round to three decimal places
                 self.indoor = round(self.indoor, 3)
@@ -234,17 +211,18 @@ class ControlController:
             outdoor_record = "".join(temp for temp in total_readings[1:] if temp in string.printable)
             if self.indoor != 90:
                 try:
-                    self.output_file = codecs.open(self.data_file, 'w', 'utf-8')
-                    self.output_file.write(outdoor_record)
-                    self.output_file.write(",")
-                    self.output_file.write(str(self.control_reading))
-                    self.output_file.close()
+                    self.sensor_readings.write("," + repr(outdoor_record))
+                    self.sensor_readings.write(",")
+                    self.sensor_readings.write(str(self.control_reading))
+                    self.sensor_readings.write("\n")
+                    self.sensor_readings.close()
                 except: # Back up subsequent readings to the microSD
                     self.data_file = "/home/pi/sensors.csv"
-                    self.output_file = codecs.open(self.data_file, 'w', 'utf-8')
-                    self.output_file.write(outdoor_record)
+                    self.output_file = codecs.open(self.data_file, 'a', 'utf-8')
+		            self.output_file.write("," + repr(outdoor_record))
                     self.output_file.write(",")
                     self.output_file.write(str(self.control_reading))
+                    self.output_file.write("\n")
                     self.output_file.close()
 
             else:

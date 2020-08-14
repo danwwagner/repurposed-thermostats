@@ -39,10 +39,12 @@ class MCP9808(Sensor):
      Subtype of Sensor class that implements MCP9808 sensor functionality.
     """
 
-    def __init__(self, reserved_addr):
+    def __init__(self, reserved_addr, control_addr):
         self.sensor_cnt = 0
         self.addr_list = []
         self.sensor_list = []
+        self.control_sensor = None
+        self.control_addr = control_addr
         self.changed_sensors = False
         self.reserved = list(reserved_addr)
 
@@ -117,14 +119,21 @@ class MCP9808(Sensor):
         i = 0
         for addr in self.addr_list:
             if self.changed_sensors:
-                self.sensor_list.append(mcp9808.MCP9808((int(addr, 16))))
-                try:
-                    self.sensor_list[i].begin()
-                except:
-                    self.sensor_list.remove(self.sensor_list[i])
-                    self.sensor_cnt -= 1
-                    continue  # don't increment i
-                i += 1
+               	if addr == self.control_addr:
+			try:
+                        	self.control_sensor = mcp9808.MCP9808((int(self.control_addr, 16)))
+                		self.control_sensor.begin()
+			except:
+				print "Error in  control sensor init"
+		else:
+			try:
+                        	self.sensor_list.append(mcp9808.MCP9808((int(addr, 16))))
+	                	self.sensor_list[i].begin()
+                	except:
+                    		self.sensor_list.remove(self.sensor_list[i])
+                    		self.sensor_cnt -= 1
+                   		continue  # don't increment i
+                	i += 1
 
         self.changed_sensors = False
 
@@ -137,7 +146,8 @@ class MCP9808(Sensor):
         """
 
         indoor = 0
-        sensor_readings = ""
+        control = 0
+	sensor_readings = ""
         bad_sensors = 0
         for i in range(0, self.sensor_cnt):
             try:
@@ -148,6 +158,11 @@ class MCP9808(Sensor):
             sensor_readings += ("," + repr(temp))
             indoor += temp
         indoor /= (self.sensor_cnt - bad_sensors)
-        return indoor, sensor_readings
+        try:
+	    control = float(self.control_sensor.readTempC())
+	except:
+	    print "Error in reading control sensor"
+            control = 0
+	return indoor, sensor_readings, control
 
 # Add other implementations of sensor types here
