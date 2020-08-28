@@ -219,7 +219,7 @@ class ControlController:
                 except: # Back up subsequent readings to the microSD
                     self.data_file = "/home/pi/sensors.csv"
                     self.output_file = codecs.open(self.data_file, 'a', 'utf-8')
-		            self.output_file.write("," + repr(outdoor_record))
+                    self.output_file.write("," + repr(outdoor_record))
                     self.output_file.write(",")
                     self.output_file.write(str(self.control_reading))
                     self.output_file.write("\n")
