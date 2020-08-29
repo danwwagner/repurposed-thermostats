@@ -1,4 +1,5 @@
 from controlcontroller import ControlController
+import glob
 import os
 
 # (1) Change sensor type here
@@ -29,12 +30,15 @@ reserved = ["68"]
 sensor = [MCP9808(reserved, excluded_sensor)]
 
 # Find the USB folder in the mount point
-path = "/media/pi/"
-directory = os.listdir(path)
-while len(directory) == 0:
-  directory = os.listdir(path)
+path = "/media/pi/*"
+list_of_usb_names = glob.glob(path)
+
+# Get the most recently connected flashdrive
+recent_mount = max(list_of_usb_names, key=os.path.getctime)
+if len(recent_mount) == 0:
+  directory = "/home/pi/repurposed-thermostats/src"
   
-path = path + directory[0] + "/"
+path = recent_mount
 
 # Initialize the controller program
 tent_control = ControlController(path, sensor)
