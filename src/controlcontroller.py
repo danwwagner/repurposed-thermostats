@@ -32,7 +32,7 @@ class ControlController:
         self.num_sensors = [None] * len(self.sensors)
 
         # Filename for specific tent to write data
-        self.data_file = data_dir + 'sensors.csv'
+        self.data_file = data_dir + 'R1G4sensors.csv'
 
         # Format for logging information
         self.format = "%(asctime)-15s %(message)s"

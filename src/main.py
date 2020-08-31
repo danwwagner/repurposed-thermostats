@@ -38,7 +38,7 @@ recent_mount = max(list_of_usb_names, key=os.path.getctime)
 if len(recent_mount) == 0:
   directory = "/home/pi/repurposed-thermostats/src"
   
-path = recent_mount
+path = recent_mount + "/"
 
 # Initialize the controller program
 tent_control = ControlController(path, sensor)
