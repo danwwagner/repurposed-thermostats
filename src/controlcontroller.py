@@ -11,6 +11,7 @@ import time
 import codecs
 import subprocess
 import string
+from shutil import copyfile
 
 
 class ControlController:
@@ -32,7 +33,9 @@ class ControlController:
         self.num_sensors = [None] * len(self.sensors)
 
         # Filename for specific tent to write data
-        self.data_file = data_dir + 'R1G4sensors.csv'
+        self.data_file = '/home/pi/R1G1sensors.csv'
+
+        self.dest_dirs = data_dir
 
         # Format for logging information
         self.format = "%(asctime)-15s %(message)s"
@@ -216,6 +219,7 @@ class ControlController:
                     self.sensor_readings.write(str(self.control_reading))
                     self.sensor_readings.write("\n")
                     self.sensor_readings.close()
+                        
                 except: # Back up subsequent readings to the microSD
                     self.data_file = "/home/pi/sensors.csv"
                     self.output_file = codecs.open(self.data_file, 'a', 'utf-8')
@@ -225,6 +229,12 @@ class ControlController:
                     self.output_file.write("\n")
                     self.output_file.close()
 
+                # Copy over the data file to each "mounted" USB
+                for dir in self.dest_dirs:
+                    try:
+                        copyfile(self.data_file, dir)
+                    except:
+                        continue
             else:
                 self.logger.info('Cannot read sensors. No temperature data.')
 

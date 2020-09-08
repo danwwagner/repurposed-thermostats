@@ -33,12 +33,11 @@ sensor = [MCP9808(reserved, excluded_sensor)]
 path = "/media/pi/*"
 list_of_usb_names = glob.glob(path)
 
-# Get the most recently connected flashdrive
-recent_mount = max(list_of_usb_names, key=os.path.getctime)
-if len(recent_mount) == 0:
+
+if len(list_of_usb_names) == 0:
   directory = "/home/pi/repurposed-thermostats/src"
   
-path = recent_mount + "/"
+path = [ dir + "/R1G4sensors.csv" for dir in list_of_usb_names]
 
 # Initialize the controller program
 tent_control = ControlController(path, sensor)
